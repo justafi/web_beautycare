@@ -1,3 +1,8 @@
+/**
+ * Root Layout Configuration
+ * BeautyCare - Platform Reservasi Salon & Klinik Kecantikan
+ */
+
 import { Cormorant_Garamond, Jost } from 'next/font/google';
 import Providers from '@/components/Providers';
 import { getProfile } from '@/lib/supabase/server';
