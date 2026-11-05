@@ -1,7 +1,5 @@
 # ✨ BeautyCare — Sistem Informasi Reservasi Salon & Klinik Kecantikan
 
-**Kelompok 2 — Proyek Akhir Pemrograman Web**
-
 BeautyCare adalah aplikasi web *full-stack* untuk manajemen operasional dan reservasi layanan salon serta klinik kecantikan secara daring (*online*). Aplikasi ini dirancang untuk memudahkan pelanggan memesan jadwal perawatan tanpa antre, membantu terapis memantau agenda kerja harian, serta memfasilitasi admin dalam mengelola layanan, staf, jam operasional, dan rekapitulasi transaksi dengan pencegahan jadwal bentrok (*anti double-booking*).
 
 ---
@@ -16,7 +14,6 @@ BeautyCare adalah aplikasi web *full-stack* untuk manajemen operasional dan rese
 7. [Konfigurasi Environment (.env.example)](#7-konfigurasi-environment-envexample)
 8. [Inisialisasi Database, Seeding & Pengujian](#8-inisialisasi-database-seeding--pengujian)
 9. [Konfigurasi Web Push & Background Worker](#9-konfigurasi-web-push--background-worker)
-10. [Status Fitur & Keterbatasan Saat Ini](#10-status-fitur--keterbatasan-saat-ini)
 
 ---
 
@@ -284,20 +281,3 @@ REDIS_URL=redis://localhost:6379
    Masukkan *Public Key* dan *Private Key* ke dalam `.env.local`.
 2. **Menjalankan Redis & Background Worker:**
    Pastikan *instance* Redis aktif, lalu jalankan proses worker secara terpisah untuk memproses antrean notifikasi reservasi.
-
----
-
-## 10. Status Fitur & Keterbatasan Saat Ini
-
-### ✅ Fitur yang Sudah Selesai
-- [x] Seluruh antarmuka dan alur pengguna untuk 4 kategori akses (Publik, Pelanggan, Staf, Admin).
-- [x] Perhitungan slot ketersediaan dinamis yang memperhitungkan durasi layanan, jam kerja staf, waktu istirahat, dan hari libur salon.
-- [x] Pencegahan jadwal bentrok (*double-booking*) hingga ke level constraint PostgreSQL (`23P01`).
-- [x] Penyimpanan *snapshot* harga & nama layanan pada saat reservasi dibuat.
-- [x] Unggah foto layanan dan foto profil terapis ke Object Storage (`assets`).
-- [x] Dashboard analitik menggunakan grafik interaktif (`recharts`) serta ekspor laporan transaksi ke format CSV (dilengkapi proteksi *CSV Formula Injection*).
-- [x] Desain responsif (Mobile & Desktop) dengan dukungan aksesibilitas keyboard dan *state* UI lengkap (*Loading*, *Empty*, *Error*, *Success Toast*).
-
-### ⚠️ Keterbatasan & Pengembangan Selanjutnya
-- **Pembayaran Manual:** Pencatatan pembayaran dilakukan secara manual oleh kasir/admin di salon (belum terintegrasi dengan *payment gateway* otomatis seperti Midtrans/Xendit).
-- **Konsolidasi Route Handlers & Web Push Worker:** Beberapa pemanggilan pembacaan/manipulasi data masih berinteraksi dengan RPC Supabase dari sisi klien dan sedang dalam tahap penyempurnaan menuju *Route Handlers* terpusat beserta modul *background worker* Web Push Notification.
