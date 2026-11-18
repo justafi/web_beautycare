@@ -2,6 +2,7 @@
 import { ArrowRight, Clock, MapPin, Phone, Quote } from 'lucide-react';
 import Link from 'next/link';
 import { HoursList } from '../../components/Layouts.jsx';
+import SalonMap from '../../components/SalonMap.jsx';
 import { Button, Card, ErrorState, SmartImage, Spinner } from '../../components/ui.jsx';
 import { rupiah } from '../../lib/format.js';
 import SlotChecker from '../../components/SlotChecker.jsx';
@@ -109,13 +110,16 @@ export default function Landing() {
 
       <section className="mx-auto mt-16 grid max-w-6xl gap-6 px-4 md:grid-cols-2">
         <Card><h2 className="mb-3 text-3xl">Jam operasional</h2><HoursList hours={hours} /></Card>
-        <Card>
+        <Card className="flex flex-col">
           <h2 className="mb-3 text-3xl">Alamat & kontak</h2>
           <ul className="space-y-3 text-sm text-mist">
             <li className="flex gap-2"><MapPin className="h-4 w-4 shrink-0 text-rose-600" aria-hidden />{s.address}</li>
             <li className="flex gap-2"><Phone className="h-4 w-4 shrink-0 text-rose-600" aria-hidden />{s.phone}</li>
           </ul>
-          <Link href="/pelanggan"><Button className="mt-6">Reservasi Sekarang</Button></Link>
+          <div className="mt-4 flex-1">
+            <SalonMap address={s.address} className="h-44" />
+          </div>
+          <Link href="/pelanggan"><Button className="mt-4 w-full">Reservasi Sekarang</Button></Link>
         </Card>
       </section>
     </>

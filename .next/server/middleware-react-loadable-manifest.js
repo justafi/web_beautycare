@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"api/client.js -> exceljs\":{\"id\":\"api/client.js -> exceljs\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_exceljs_dist_exceljs_min_js.js\"]}}"

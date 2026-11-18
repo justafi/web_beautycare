@@ -1,6 +1,7 @@
 'use client';
 import { Check, Clock, MapPin, Phone } from 'lucide-react';
 import { HoursList } from '../../components/Layouts.jsx';
+import SalonMap from '../../components/SalonMap.jsx';
 import { Card, ErrorState, SmartImage, Spinner } from '../../components/ui.jsx';
 import { useFetch } from '../../lib/useFetch.js';
 
@@ -14,12 +15,15 @@ export default function SalonProfile() {
       <h1 className="text-5xl">{s.name}</h1>
       <p className="mt-4 max-w-2xl text-lg text-mist">{s.description}</p>
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="flex flex-col">
           <h2 className="mb-3 flex items-center gap-2 text-3xl"><MapPin className="h-5 w-5 text-rose-600" aria-hidden />Kontak</h2>
           <p className="text-sm text-mist">{s.address}</p>
           <p className="mt-2 flex items-center gap-2 text-sm text-mist"><Phone className="h-4 w-4" aria-hidden />{s.phone}</p>
           <p className="mt-1 text-sm text-mist">{s.email}</p>
           {s.instagram && <p className="mt-1 text-sm text-mist">{s.instagram}</p>}
+          <div className="mt-4 flex-1">
+            <SalonMap address={s.address} className="h-44" />
+          </div>
         </Card>
         <Card>
           <h2 className="mb-3 flex items-center gap-2 text-3xl"><Clock className="h-5 w-5 text-rose-600" aria-hidden />Jam operasional</h2>

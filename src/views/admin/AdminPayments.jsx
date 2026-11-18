@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { api, parseError } from '../../api/client.js';
 import { Button, Card, EmptyState, ErrorState, Field, Input, Modal, PageHeader, Pagination, PaymentBadge, Select, Spinner, StatCard } from '../../components/ui.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { METHODS, formatDate, rupiah } from '../../lib/format.js';
+import { METHODS, formatDate, rupiah, todayWIB } from '../../lib/format.js';
 import { useFetch } from '../../lib/useFetch.js';
 import { Clock, RotateCcw } from 'lucide-react';
 
@@ -32,13 +32,13 @@ export default function AdminPayments() {
       toast.success('Pembayaran dicatat.'); setEdit(null); reload();
     } catch (ex) { const p = parseError(ex); setErrors(p.fields); toast.error(p.message); } finally { setSaving(false); }
   };
-  const exportCsv = async () => {
+  const exportExcel = async () => {
     setExporting(true);
     try {
-      const r = await api.get('/admin/payments/export.csv', { params, responseType: 'blob' });
+      const r = await api.get('/admin/payments/export.xlsx', { params, responseType: 'blob' });
       const url = URL.createObjectURL(r.data);
-      const a = document.createElement('a'); a.href = url; a.download = 'transaksi.csv'; a.click(); URL.revokeObjectURL(url);
-      toast.success('Laporan CSV diunduh.');
+      const a = document.createElement('a'); a.href = url; a.download = `rekap-transaksi-beautycare-${todayWIB()}.xlsx`; a.click(); URL.revokeObjectURL(url);
+      toast.success('Laporan Excel berhasil diunduh.');
     } catch (ex) { toast.error(parseError(ex).message); } finally { setExporting(false); }
   };
 
@@ -47,7 +47,7 @@ export default function AdminPayments() {
   return (
     <>
       <PageHeader title="Rekap transaksi" subtitle="Pembayaran dicatat manual oleh admin (belum ada payment gateway). Pendapatan aktual hanya dari status Lunas."
-        actions={<Button variant="outline" loading={exporting} onClick={exportCsv}><Download className="h-4 w-4" />Ekspor CSV</Button>} />
+        actions={<Button variant="outline" loading={exporting} onClick={exportExcel}><Download className="h-4 w-4" />Ekspor Excel</Button>} />
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={Wallet} label="Pendapatan aktual" value={sum ? rupiah(sum.revenue) : '–'} hint="Hanya pembayaran lunas" />
         <StatCard icon={Receipt} label="Transaksi lunas" value={sum ? sum.paid_count : '–'} />

@@ -1,0 +1,7 @@
+{
+  "/admin/transaksi/page": "app/admin/transaksi/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/(public)/page": "app/(public)/page.js",
+  "/(public)/layanan/page": "app/(public)/layanan/page.js",
+  "/(public)/masuk/page": "app/(public)/masuk/page.js"
+}

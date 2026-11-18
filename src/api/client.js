@@ -1,7 +1,7 @@
 'use client';
 import { createClient } from '@/lib/supabase/client';
 import { assetUrl } from '@/lib/assets';
-import { addDays, todayWIB } from '@/lib/format';
+import { METHODS, PAYMENT, addDays, formatDate, todayWIB } from '@/lib/format';
 
 const sb = () => createClient();
 const ACTIVE = ['pending', 'confirmed', 'in_progress'];
@@ -459,16 +459,164 @@ on('PATCH', '/admin/payments/([^/]+)', async ({ args, body }) => {
   check(error);
   return { message: 'Pembayaran dicatat.' };
 });
-const csvCell = (v) => {
-  let s = v === null || v === undefined ? '' : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; 
-  return `"${s.replaceAll('"', '""')}"`;
-};
-on('GET', '/admin/payments/export.csv', async ({ params: p }) => {
+on('GET', '/admin/payments/export\\.xlsx', async ({ params: p }) => {
   const { data, error } = await payFilters(sb().from('reservations').select(PAY_SELECT), p).order('start_at', { ascending: false }).limit(10000);
   check(error);
-  const head = ['Kode', 'Tanggal', 'Pelanggan', 'Layanan', 'Harga', 'Diskon', 'Total', 'Metode', 'Status', 'Dibayar pada'];
-  const lines = [head.map(csvCell).join(',')];
-  data.map(payRow).forEach((r) => lines.push([r.code, r.date, r.customer_name, r.service_name, r.amount, r.discount, r.total, r.method, r.status, r.paid_at].map(csvCell).join(',')));
-  return new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const rows = data.map(payRow);
+
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'BeautyCare';
+  const ws = wb.addWorksheet('Rekap Transaksi');
+
+  /* ── Colour palette ─────────────────────── */
+  const ROSE = '8A4858';
+  const ROSE600 = 'A25A6B';
+  const SUBTITLE = '6F6568';
+  const WHITE = 'FFFFFF';
+  const STRIPE = 'FDF1F3';
+  const BORDER_CLR = 'F3CDD4';
+  const TOTAL_BG = 'F9E3E7';
+  const thinBorder = { style: 'thin', color: { argb: BORDER_CLR } };
+  const border = { top: thinBorder, left: thinBorder, bottom: thinBorder, right: thinBorder };
+  const rupiahFmt = '"Rp" #,##0';
+
+  const fmtWib = (iso) => {
+    if (!iso) return '-';
+    const w = wib(iso);
+    const [y, m, d] = w.date.split('-');
+    return `${d}/${m}/${y} ${w.time} WIB`;
+  };
+
+  /* ── Row 1: title ─────────────────────── */
+  ws.mergeCells('A1:L1');
+  const titleCell = ws.getCell('A1');
+  titleCell.value = 'LAPORAN REKAP TRANSAKSI — BEAUTYCARE';
+  titleCell.font = { bold: true, size: 14, color: { argb: ROSE } };
+  titleCell.alignment = { vertical: 'middle' };
+  ws.getRow(1).height = 30;
+
+  /* ── Row 2: filter info ────────────────── */
+  ws.mergeCells('A2:L2');
+  const infoCell = ws.getCell('A2');
+  const period = p.from || p.to ? `${p.from || '...'} s/d ${p.to || '...'}` : 'Semua Periode';
+  const parts = [`Periode: ${period}`];
+  if (p.status) parts.push(`Status: ${PAYMENT[p.status]?.label || p.status}`);
+  if (p.method) parts.push(`Metode: ${METHODS[p.method] || p.method}`);
+  parts.push(`Diekspor: ${fmtWib(new Date().toISOString())}`);
+  infoCell.value = parts.join('  |  ');
+  infoCell.font = { size: 10, italic: true, color: { argb: SUBTITLE } };
+  infoCell.alignment = { vertical: 'middle' };
+
+  /* ── Row 3: spacer ─────────────────────── */
+  ws.getRow(3).height = 8;
+
+  /* ── Row 4: header ─────────────────────── */
+  const headers = ['No', 'Kode Reservasi', 'Tanggal', 'Pelanggan', 'Layanan', 'Harga', 'Diskon', 'Total', 'Metode', 'Status', 'Dibayar Pada', 'Catatan'];
+  const centerCols = new Set([1, 2, 3, 9, 10]);
+  const rightCols = new Set([6, 7, 8]);
+  const headerRow = ws.getRow(4);
+  headerRow.height = 26;
+  headers.forEach((h, i) => {
+    const c = headerRow.getCell(i + 1);
+    c.value = h;
+    c.font = { bold: true, color: { argb: WHITE } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROSE600 } };
+    c.border = border;
+    c.alignment = { vertical: 'middle', horizontal: centerCols.has(i + 1) ? 'center' : rightCols.has(i + 1) ? 'right' : 'left' };
+  });
+
+  /* ── Data rows ─────────────────────────── */
+  const statusColor = { paid: '065F46', unpaid: '92400E', refunded: '57534E' };
+  const dataStart = 5;
+  rows.forEach((r, idx) => {
+    const rowNum = dataStart + idx;
+    const row = ws.getRow(rowNum);
+    const vals = [
+      idx + 1,
+      r.code,
+      formatDate(r.date, false),
+      r.customer_name,
+      r.service_name,
+      r.amount,
+      r.discount,
+      r.total,
+      METHODS[r.method] || '-',
+      PAYMENT[r.status]?.label || r.status,
+      fmtWib(r.paid_at),
+      r.note || '-',
+    ];
+    vals.forEach((v, ci) => {
+      const c = row.getCell(ci + 1);
+      c.value = v;
+      c.border = border;
+      const colIdx = ci + 1;
+      c.alignment = { vertical: 'middle', horizontal: centerCols.has(colIdx) ? 'center' : rightCols.has(colIdx) ? 'right' : 'left', wrapText: colIdx === 12 };
+      if ([6, 7, 8].includes(colIdx)) c.numFmt = rupiahFmt;
+      if (colIdx === 10 && statusColor[r.status]) c.font = { color: { argb: statusColor[r.status] }, bold: true };
+    });
+    if (idx % 2 === 1) {
+      for (let ci = 1; ci <= 12; ci++) {
+        row.getCell(ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: STRIPE } };
+      }
+    }
+  });
+
+  /* ── Total row ─────────────────────────── */
+  const totalRowNum = dataStart + rows.length;
+  const totalRow = ws.getRow(totalRowNum);
+  ws.mergeCells(`A${totalRowNum}:E${totalRowNum}`);
+  const totalLabel = totalRow.getCell(1);
+  totalLabel.value = 'TOTAL KESELURUHAN';
+  totalLabel.font = { bold: true };
+  totalLabel.alignment = { vertical: 'middle', horizontal: 'center' };
+  const thickBorder = { style: 'medium', color: { argb: ROSE600 } };
+  for (let ci = 1; ci <= 12; ci++) {
+    const c = totalRow.getCell(ci);
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
+    c.font = { bold: true };
+    c.border = { top: thickBorder, bottom: thickBorder, left: thinBorder, right: thinBorder };
+    if ([6, 7, 8].includes(ci)) {
+      const col = String.fromCharCode(64 + ci);
+      c.value = { formula: `SUM(${col}${dataStart}:${col}${totalRowNum - 1})` };
+      c.numFmt = rupiahFmt;
+      c.alignment = { horizontal: 'right', vertical: 'middle' };
+    }
+  }
+
+  /* ── Summary block ─────────────────────── */
+  const sumStart = totalRowNum + 2;
+  const sums = { revenue: 0, paid_count: 0, pending: 0, refunded: 0 };
+  rows.forEach((r) => {
+    if (r.status === 'paid') { sums.revenue += r.total; sums.paid_count += 1; }
+    if (r.status === 'unpaid') sums.pending += r.total;
+    if (r.status === 'refunded') sums.refunded += r.total;
+  });
+  const summaryData = [
+    ['Pendapatan Aktual (Lunas)', sums.revenue],
+    ['Total Belum Dibayar', sums.pending],
+    ['Total Dikembalikan', sums.refunded],
+    ['Jumlah Transaksi Lunas', sums.paid_count],
+  ];
+  summaryData.forEach(([label, val], i) => {
+    const row = ws.getRow(sumStart + i);
+    const lc = row.getCell(1);
+    lc.value = label;
+    lc.font = { bold: true, color: { argb: SUBTITLE } };
+    const vc = row.getCell(2);
+    vc.value = val;
+    if (i < 3) vc.numFmt = rupiahFmt;
+    vc.font = { bold: true };
+  });
+
+  /* ── Column widths (auto-fit) ──────────── */
+  const colWidths = [5, 18, 20, 22, 24, 16, 14, 16, 14, 16, 22, 28];
+  ws.columns.forEach((col, i) => { if (colWidths[i]) col.width = colWidths[i]; });
+
+  /* ── Freeze pane & auto filter ─────────── */
+  ws.views = [{ state: 'frozen', ySplit: 4 }];
+  ws.autoFilter = { from: 'A4', to: 'L4' };
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 });
