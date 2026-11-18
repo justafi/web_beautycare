@@ -1,12 +1,11 @@
 'use client';
-import { Download, Receipt, Wallet } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Clock, Download, Receipt, RotateCcw, Wallet } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { api, parseError } from '../../api/client.js';
 import { Button, Card, EmptyState, ErrorState, Field, Input, Modal, PageHeader, Pagination, PaymentBadge, Select, Spinner, StatCard } from '../../components/ui.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { METHODS, formatDate, rupiah, todayWIB } from '../../lib/format.js';
 import { useFetch } from '../../lib/useFetch.js';
-import { Clock, RotateCcw } from 'lucide-react';
 
 const PAGE_SIZE = 15;
 
@@ -14,12 +13,25 @@ export default function AdminPayments() {
   const toast = useToast();
   const [f, setF] = useState({ from: '', to: '', status: '', method: '' });
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
   const params = { from: f.from || undefined, to: f.to || undefined, status: f.status || undefined, method: f.method || undefined };
   const { data, loading, error, reload } = useFetch('/admin/payments', { ...params, page, page_size: PAGE_SIZE });
   const [edit, setEdit] = useState(null);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  const toggleSort = (key) => {
+    setSort((prev) => ({
+      key,
+      dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc',
+    }));
+  };
+
+  const SortIcon = ({ col }) => {
+    if (sort.key !== col) return <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />;
+    return sort.dir === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-rose-700" /> : <ArrowDown className="h-3.5 w-3.5 text-rose-700" />;
+  };
 
   const setFilter = (k) => (e) => { setF({ ...f, [k]: e.target.value }); setPage(1); };
   const open = (p) => { setErrors({}); setEdit({ id: p.id, code: p.code, amount: p.amount, discount: p.discount, method: p.method || 'cash', status: p.status === 'unpaid' ? 'paid' : p.status, note: p.note || '' }); };
@@ -42,7 +54,20 @@ export default function AdminPayments() {
     } catch (ex) { toast.error(parseError(ex).message); } finally { setExporting(false); }
   };
 
-  const list = data?.payments || [];
+  const list = useMemo(() => {
+    const raw = data?.payments || [];
+    return [...raw].sort((a, b) => {
+      if (sort.key === 'total') {
+        const diff = Number(a.total || 0) - Number(b.total || 0);
+        return sort.dir === 'asc' ? diff : -diff;
+      }
+      const valA = a[sort.key] || '';
+      const valB = b[sort.key] || '';
+      const cmp = String(valA).localeCompare(String(valB));
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [data?.payments, sort]);
+
   const sum = data?.summary;
   return (
     <>
@@ -66,7 +91,36 @@ export default function AdminPayments() {
         <>
           <Card className="overflow-x-auto p-0">
             <table className="w-full min-w-[52rem] text-left text-sm">
-              <thead className="bg-blush-50 text-mist"><tr><th className="px-4 py-3">Kode</th><th className="px-4 py-3">Tanggal</th><th className="px-4 py-3">Pelanggan</th><th className="px-4 py-3">Layanan</th><th className="px-4 py-3 text-right">Harga</th><th className="px-4 py-3 text-right">Diskon</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3">Metode</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Aksi</th></tr></thead>
+              <thead className="bg-blush-50 text-mist">
+                <tr>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort('code')} className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Kode <SortIcon col="code" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Tanggal <SortIcon col="date" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort('customer_name')} className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Pelanggan <SortIcon col="customer_name" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">Layanan</th>
+                  <th className="px-4 py-3 text-right">Harga</th>
+                  <th className="px-4 py-3 text-right">Diskon</th>
+                  <th className="px-4 py-3 text-right">
+                    <button type="button" onClick={() => toggleSort('total')} className="inline-flex items-center justify-end gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Total <SortIcon col="total" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">Metode</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Aksi</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-blush-100">
                 {list.map((p) => (
                   <tr key={p.id}>

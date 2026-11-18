@@ -1,6 +1,6 @@
 'use client';
-import { CalendarClock, CheckCheck, ClipboardList, Eye, Search, XCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarClock, CheckCheck, ClipboardList, Eye, Search, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, parseError } from '../../api/client.js';
 import RescheduleModal from '../../components/RescheduleModal.jsx';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, Input, Modal, PageHeader, Pagination, PaymentBadge, Select, Spinner, StatusBadge } from '../../components/ui.jsx';
@@ -16,6 +16,7 @@ export default function AdminReservations() {
   const [f, setF] = useState(EMPTY);
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
   useEffect(() => { const t = setTimeout(() => { setQ(f.q); setPage(1); }, 300); return () => clearTimeout(t); }, [f.q]);
   const services = useFetch('/admin/services');
   const staff = useFetch('/admin/staff');
@@ -25,6 +26,18 @@ export default function AdminReservations() {
   const [confirm, setConfirm] = useState(null); // { r, to }
   const [resTarget, setResTarget] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  const toggleSort = (key) => {
+    setSort((prev) => ({
+      key,
+      dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc',
+    }));
+  };
+
+  const SortIcon = ({ col }) => {
+    if (sort.key !== col) return <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />;
+    return sort.dir === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-rose-700" /> : <ArrowDown className="h-3.5 w-3.5 text-rose-700" />;
+  };
 
   const setFilter = (k) => (e) => { setF({ ...f, [k]: e.target.value }); setPage(1); };
   const openDetail = async (id) => { try { setDetail((await api.get(`/reservations/${id}`)).data); } catch (e) { toast.error(parseError(e).message); } };
@@ -37,7 +50,17 @@ export default function AdminReservations() {
       setConfirm(null); setDetail(null); reload();
     } catch (e) { toast.error(parseError(e).message); setConfirm(null); } finally { setBusy(false); }
   };
-  const list = data?.reservations || [];
+
+  const list = useMemo(() => {
+    const raw = data?.reservations || [];
+    return [...raw].sort((a, b) => {
+      const valA = sort.key === 'date' ? `${a.date} ${a.start_time}` : (a[sort.key] || '');
+      const valB = sort.key === 'date' ? `${b.date} ${b.start_time}` : (b[sort.key] || '');
+      const cmp = String(valA).localeCompare(String(valB));
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [data?.reservations, sort]);
+
   const actions = (r) => (
     <div className="flex justify-end gap-1">
       <Button variant="ghost" size="sm" aria-label={`Detail ${r.code}`} onClick={() => openDetail(r.id)}><Eye className="h-4 w-4" /></Button>
@@ -67,7 +90,30 @@ export default function AdminReservations() {
         <>
           <Card className="overflow-x-auto p-0">
             <table className="w-full min-w-[56rem] text-left text-sm">
-              <thead className="bg-blush-50 text-mist"><tr><th className="px-4 py-3">Kode</th><th className="px-4 py-3">Jadwal</th><th className="px-4 py-3">Pelanggan</th><th className="px-4 py-3">Layanan</th><th className="px-4 py-3">Terapis</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Bayar</th><th className="px-4 py-3 text-right">Aksi</th></tr></thead>
+              <thead className="bg-blush-50 text-mist">
+                <tr>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort('code')} className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Kode <SortIcon col="code" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Jadwal <SortIcon col="date" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">
+                    <button type="button" onClick={() => toggleSort('customer_name')} className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-rose-700">
+                      Pelanggan <SortIcon col="customer_name" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3">Layanan</th>
+                  <th className="px-4 py-3">Terapis</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Bayar</th>
+                  <th className="px-4 py-3 text-right">Aksi</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-blush-100">
                 {list.map((r) => (
                   <tr key={r.id}>
